@@ -2,8 +2,6 @@
 #![cfg_attr(test, no_main)]
 #![feature(custom_test_frameworks)]
 #![feature(abi_x86_interrupt)]
-#![feature(const_mut_refs)]
-#![feature(error_in_core)]
 #![test_runner(crate::test_runner)]
 #![reexport_test_harness_main = "test_main"]
 
@@ -85,8 +83,19 @@ entry_point!(test_kernel_main);
 
 /// Entry point for `cargo xtest`
 #[cfg(test)]
-fn test_kernel_main(_boot_info: &'static BootInfo) -> ! {
+fn test_kernel_main(boot_info: &'static BootInfo) -> ! {
+    use allocator;
+    use memory::{self, BootInfoFrameAllocator};
+    use x86_64::VirtAddr;
+
     init();
+    
+    // Initialize heap for tests
+    let phys_mem_offset = VirtAddr::new(boot_info.physical_memory_offset);
+    let mut mapper = unsafe { memory::init(phys_mem_offset) };
+    let mut frame_allocator = unsafe { BootInfoFrameAllocator::init(&boot_info.memory_map) };
+    allocator::init_heap(&mut mapper, &mut frame_allocator).expect("heap initialization failed");
+    
     test_main();
     hlt_loop();
 }

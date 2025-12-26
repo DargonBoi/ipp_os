@@ -53,7 +53,24 @@ impl LinkedListAllocator {
         node.next = self.head.next.take();
         let node_ptr = addr as *mut ListNode;
         node_ptr.write(node);
-        self.head.next = Some(&mut *node_ptr)
+        self.head.next = Some(&mut *node_ptr);
+
+        // coalesce adjacent free regions to reduce fragmentation
+        self.coalesce_free_regions();
+    }
+
+    /// Coalesces adjacent free regions to reduce fragmentation.
+    fn coalesce_free_regions(&mut self) {
+        let mut current = &mut self.head;
+        while let Some(region) = current.next.as_mut() {
+            if region.next.as_ref().map_or(false, |next| region.end_addr() == next.start_addr()) {
+                let next = region.next.take().unwrap();
+                region.size += next.size;
+                region.next = next.next.take();
+            } else {
+                current = current.next.as_mut().unwrap();
+            }
+        }
     }
 
     /// Looks for a free region with the given size and alignment and removes

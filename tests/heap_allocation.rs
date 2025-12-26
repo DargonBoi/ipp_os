@@ -1,24 +1,23 @@
 #![no_std]
 #![no_main]
 #![feature(custom_test_frameworks)]
-#![test_runner(blog_os::test_runner)]
+#![test_runner(ipp_os::test_runner)]
 #![reexport_test_harness_main = "test_main"]
 
 extern crate alloc;
 
 use alloc::{boxed::Box, vec::Vec};
-use blog_os::allocator::HEAP_SIZE;
 use bootloader::{entry_point, BootInfo};
 use core::panic::PanicInfo;
 
 entry_point!(main);
 
 fn main(boot_info: &'static BootInfo) -> ! {
-    use blog_os::allocator;
-    use blog_os::memory::{self, BootInfoFrameAllocator};
+    use ipp_os::allocator;
+    use ipp_os::memory::{self, BootInfoFrameAllocator};
     use x86_64::VirtAddr;
 
-    blog_os::init();
+    ipp_os::init();
     let phys_mem_offset = VirtAddr::new(boot_info.physical_memory_offset);
     let mut mapper = unsafe { memory::init(phys_mem_offset) };
     let mut frame_allocator = unsafe { BootInfoFrameAllocator::init(&boot_info.memory_map) };
@@ -48,7 +47,7 @@ fn large_vec() {
 
 #[test_case]
 fn many_boxes() {
-    for i in 0..HEAP_SIZE {
+    for i in 0..100 {
         let x = Box::new(i);
         assert_eq!(*x, i);
     }
@@ -56,15 +55,15 @@ fn many_boxes() {
 
 #[test_case]
 fn many_boxes_long_lived() {
-    let long_lived = Box::new(1); // new
-    for i in 0..HEAP_SIZE {
+    let long_lived = Box::new(1);
+    for i in 0..100 {
         let x = Box::new(i);
         assert_eq!(*x, i);
     }
-    assert_eq!(*long_lived, 1); // new
+    assert_eq!(*long_lived, 1);
 }
 
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
-    blog_os::test_panic_handler(info)
+    ipp_os::test_panic_handler(info)
 }
